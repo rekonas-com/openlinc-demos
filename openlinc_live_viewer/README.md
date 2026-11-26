@@ -4,6 +4,12 @@ A page in your browser that shows the Somnolinc Headband's data live: EEG left a
 acceleration, rotation and ambient light on one time axis, and the pebble turning as your head
 does.
 
+<p align="center">
+  <a href="https://somnolinc.com/"><img src="docs/somnolinc-headband.jpg" width="42%" alt="A wearer with the Somnolinc headband across his forehead and his phone in hand"></a>
+  <a href="docs/openlinc-live-plot.png"><img src="docs/openlinc-live-plot.png" width="55%" alt="OpenLinc demo showing left and right EEG, orientation, acceleration, rotation and light on a shared time axis"></a>
+</p>
+
+
 ## Run it
 
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/). It fetches Python and
