@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Somnolinc live</title>
+<!-- The headline's typeface, as on somnolinc.com; without a connection the page's own font is used. -->
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400&display=swap">
+<!-- The plots are drawn by uPlot, which comes from the internet like the 3D view's three.js. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css">
+<script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
+<style>
+  @font-face { font-family: 'Bai Jamjuree'; font-weight: 400; src: url(/assets/baijamjuree_regular.ttf); }
+  @font-face { font-family: 'Bai Jamjuree'; font-weight: 700; src: url(/assets/baijamjuree_bold.ttf); }
+  :root {
+    --page: linear-gradient(#FEF9F2 0%, #F3EFF9 50%, #FEF9F2 100%);
+    --card: #FFFFFF; --card-edge: transparent;
+    --card-shadow: 0 1px 2px rgba(50, 45, 96, 0.06), 0 14px 26px -18px rgba(50, 45, 96, 0.32);
+    --ink: #322D60; --soft: #58546C; --faint: rgba(50, 45, 96, 0.62); --violet: #6662AC;
+    --line: rgba(50, 45, 96, 0.12); --pressed: #F4F0FF; --key: rgba(255, 255, 255, 0.88); --cream: #FEF9F2;
+    --grid: rgba(50, 45, 96, 0.14); --grid-fine: rgba(50, 45, 96, 0.07);
+    --eeg: #6662AC; --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --lux: #b87400;
+  }
+  /* The dark mode, in the colours of the Somnolinc app. The series colours are the dark steps of
+     the same set, told apart also with colour-blind eyes. */
+  :root[data-theme="dark"] {
+    --page:
+      radial-gradient(60rem 40rem at 10% 0%, rgba(138, 130, 255, 0.22), transparent 70%),
+      radial-gradient(50rem 40rem at 100% 60%, rgba(199, 125, 255, 0.14), transparent 70%),
+      #05060C;
+    --card: #0D0E18; --card-edge: rgba(255, 255, 255, 0.08); --card-shadow: none;
+    --ink: #F8F6FF; --soft: rgba(248, 246, 255, 0.68); --faint: rgba(248, 246, 255, 0.5); --violet: #8A82FF;
+    --line: rgba(255, 255, 255, 0.14); --pressed: rgba(138, 130, 255, 0.2); --key: rgba(13, 14, 24, 0.86);
+    --grid: rgba(255, 255, 255, 0.11); --grid-fine: rgba(255, 255, 255, 0.05);
+    --eeg: #8A82FF; --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --lux: #EBC48B;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    color: var(--ink); font-family: 'Bai Jamjuree', system-ui, sans-serif;
+    background: var(--page) fixed;
+    border-top: 8px solid var(--violet);
+    padding: 0.8rem clamp(1rem, 3vw, 2.5rem) 1.25rem;
+    display: flex; flex-direction: column; gap: 0.7rem; min-height: 100%;
+  }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.5rem; }
+  .wordmark {
+    width: 6.6rem; aspect-ratio: 2704 / 436; background: rgba(254, 249, 242, 0.9);
+    -webkit-mask: url(/assets/somnolinc-wordmark.svg) center / contain no-repeat;
+    mask: url(/assets/somnolinc-wordmark.svg) center / contain no-repeat;
+  }
+  .controls { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
+  .by { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: rgba(254, 249, 242, 0.7); }
+  button {
+    font: inherit; font-size: 0.95rem; color: var(--ink); cursor: pointer;
+    padding: 0.4rem 0.95rem; border-radius: 999px; border: 1px solid var(--line); background: var(--card);
+  }
+  button:hover { border-color: var(--violet); }
+  button[aria-pressed="true"] { color: var(--violet); background: var(--pressed); border-color: var(--violet); }
+  button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+
+  .hero {
+    flex: none; height: clamp(10rem, 20vh, 12.5rem); border-radius: 32px; overflow: hidden; color: var(--cream);
+    display: grid; grid-template-columns: minmax(15rem, 1fr) minmax(0, 1.5fr);
+    background:
+      radial-gradient(closest-side at 72% 50%, rgba(226, 206, 255, 0.30), rgba(244, 240, 255, 0) 100%),
+      linear-gradient(135deg, #3D3873 0%, #2B2757 55%, #211D47 100%);
+    box-shadow: 0 13px 40px rgba(30, 27, 51, 0.10); border: 1px solid var(--card-edge);
+  }
+  .words { padding: 0.8rem clamp(1.2rem, 3vw, 2.4rem); display: flex; flex-direction: column; justify-content: center; gap: 0.55rem; min-width: 0; }
+  h1 {
+    margin: 0; font-family: 'Satoshi', 'Bai Jamjuree', system-ui, sans-serif; font-weight: 300;
+    font-size: clamp(2rem, 3.4vw, 3rem); line-height: 0.98; letter-spacing: -0.05em;
+  }
+  h1 span {
+    background: linear-gradient(100deg, #FFE8DA 0%, #D6C8FF 45%, #F3A2CB 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .state {  /* under the pebble */
+    position: absolute; left: 0; right: 0; bottom: 0.55rem; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; gap: 0.6rem; font-size: 0.95rem; color: rgba(254, 249, 242, 0.78);
+  }
+  .state::before {
+    content: ''; flex: none; width: 0.6rem; height: 0.6rem; border-radius: 50%;
+    background: var(--dot, #D6C8FF); box-shadow: 0 0 12px var(--dot, #D6C8FF);
+  }
+  .stage { position: relative; min-width: 0; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  .note { position: absolute; inset: 0; pointer-events: none; display: grid; place-items: center; text-align: center; color: rgba(254, 249, 242, 0.55); padding: 1rem; line-height: 1.45; }
+  .stage .tools { position: absolute; right: 1rem; bottom: 0.7rem; display: flex; align-items: center; gap: 0.8rem; font-size: 0.85rem; color: rgba(254, 249, 242, 0.5); }
+  .stage button { color: var(--cream); background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.28); }
+  .stage button:hover { background: rgba(255, 255, 255, 0.22); border-color: rgba(255, 255, 255, 0.5); }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr; height: auto; } .stage { height: 14rem; } }
+
+  /* The signals share the rest of the window; on a low window the page scrolls instead. */
+  .signals { flex: 1; display: flex; flex-direction: column; gap: 0.6rem; min-height: 43rem; }
+  .card {
+    position: relative; flex: 1; min-height: 5.5rem; border-radius: 20px; background: var(--card);
+    box-shadow: var(--card-shadow); border: 1px solid var(--card-edge);
+    display: flex; flex-direction: column; padding: 0.4rem 0.8rem 0.3rem 0.5rem;
+  }
+  .title { flex: none; display: flex; align-items: baseline; gap: 0.6rem; padding-left: 0.6rem; font-size: 0.82rem; color: var(--soft); }
+  .title b { font-size: 1rem; color: var(--ink); }
+  .plot { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+  .plot .uplot { position: absolute; inset: 0; font-family: inherit; }
+  .missing { margin: auto; color: var(--soft); }
+  .card.large { flex: 1.15; }
+  .card.last { flex: 1.18; }
+  .key {
+    position: absolute; top: 0.4rem; right: 0.8rem; z-index: 1; display: flex; gap: 0.9rem; font-size: 0.88rem; color: var(--soft);
+    padding: 0.12rem 0.65rem; border-radius: 999px; background: var(--key); border: 1px solid var(--line);
+  }
+  .key span { display: flex; align-items: center; gap: 0.35rem; }
+  .key i { width: 0.9rem; height: 0.2rem; border-radius: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="controls">
+    <button data-seconds="5">5 s</button><button data-seconds="10" aria-pressed="true">10 s</button><button data-seconds="30">30 s</button>
+    <button id="pause" aria-pressed="false">Pause</button>
+    <button id="theme" aria-pressed="false">Dark</button>
+  </div>
+</header>
+<section class="hero">
+  <div class="words">
+    <h1>Open<span>Linc.</span></h1>
+    <div class="by">by <div class="wordmark" role="img" aria-label="Somnolinc"></div></div>
+  </div>
+  <div class="stage">
+    <canvas id="pebble"></canvas>
+    <div class="note" id="note">Waiting for the orientation…</div>
+    <div class="state" id="state">Connecting to the viewer…</div>
+    <div class="tools">drag to turn the view <button id="face">Face me</button></div>
+  </div>
+</section>
+<main class="signals" id="signals"></main>
+
+<script>
+'use strict';
+// The signals: one panel each, drawn by uPlot from the samples the viewer sends.
+const MAINS_HZ = 50;  // the frequency of the mains, removed from the EEG shown
+const SERIES = ['--series-1', '--series-2', '--series-3'];  // the page's variables that hold the colours
+const PANELS = [
+  { title: 'EEG left', stream: 'eeg/raw', unit: 'µV', note: `0.5 Hz high-pass, ${MAINS_HZ} Hz notch`, plain: true, percent: [0.5, 99.5], names: ['left'], columns: [0], colours: ['--eeg'], width: 1, large: true },
+  { title: 'EEG right', stream: 'eeg/raw', unit: 'µV', note: `0.5 Hz high-pass, ${MAINS_HZ} Hz notch`, plain: true, percent: [0.5, 99.5], names: ['right'], columns: [1], colours: ['--eeg'], width: 1, large: true },
+  { title: 'Acceleration', stream: 'motion/raw', unit: 'm/s²', names: ['x', 'y', 'z'], columns: [0, 1, 2], colours: SERIES, zero: true },
+  { title: 'Rotation', stream: 'motion/raw', unit: 'rad/s', names: ['x', 'y', 'z'], columns: [3, 4, 5], colours: SERIES, zero: true },
+  { title: 'Ambient light', stream: 'light/lux', unit: 'lx', note: 'logarithmic scale', log: true, names: ['lux'], columns: [0], colours: ['--lux'], dots: true, zero: true, wide: true, floor: true },
+];
+const RATE = { 'eeg/raw': 256, 'motion/orientation': 50, 'motion/raw': 50, 'light/lux': 1 };
+const KEPT_S = 30, BEHIND_S = 0.12;  // the right edge runs this far behind the newest sample
+const LATE_S = 1;  // packets are never later than this; a larger step is an interruption
+// Free space beyond the signal, as a part of its span on each side, and how small the signal
+// has to get against the scale before the scale shrinks. The light keeps a wider scale.
+const TIGHT = { room: 0.08, shrink: 0.7 }, WIDE = { room: 0.25, shrink: 0.4 }, SHRINK_AFTER_S = 2;
+// The colours the plots are drawn in follow the page's light or dark mode.
+let colour = name => name;
+function readColours() {
+  const style = getComputedStyle(document.documentElement), read = {};
+  colour = name => read[name] ?? (read[name] = style.getPropertyValue(name).trim());
+}
+function setTheme(dark) {
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  readColours();
+  const button = document.getElementById('theme');
+  button.setAttribute('aria-pressed', dark); button.textContent = dark ? 'Light' : 'Dark';
+}
+let remembered = null;
+try { remembered = localStorage.getItem('theme'); } catch (error) { /* no storage: follow the system */ }
+setTheme(remembered ? remembered === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches);
+document.getElementById('theme').onclick = () => {
+  const dark = document.documentElement.dataset.theme !== 'dark';
+  setTheme(dark);
+  for (const panel of panels) panel.build();
+  try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (error) { /* not remembered */ }
+};
+const STATE = {
+  streaming: ['Streaming', '#67DDA0'],
+  connecting: ['The headband is connecting…', '#D6C8FF'],
+  disconnected: ['Connect the headband in the Somnolinc app', '#EBC48B'],
+  start_failed: ['The headband did not start: reconnect it in the app', '#EBC48B'],
+};
+
+// For the display the EEG passes two filters, each second order and run forward: a 0.5 Hz
+// high-pass (Butterworth), because the EEG drifts by far more than it carries, and a notch at the
+// 50 Hz of the mains in Europe, whose hum would cover the trace. Set MAINS_HZ to 60 where the
+// mains run at 60 Hz. The other streams are shown as they arrive.
+const NOTCH_Q = 30;  // the notch is about MAINS_HZ / NOTCH_Q wide
+function biquad(b, a) {  // b and a are already divided by a0
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  return x => {
+    const y = b[0] * x + b[1] * x1 + b[2] * x2 - a[0] * y1 - a[1] * y2;
+    x2 = x1; x1 = x; y2 = y1; y1 = y;
+    return y;
+  };
+}
+function highPass(hz, rate) {
+  const w = 2 * Math.PI * hz / rate, cos = Math.cos(w), alpha = Math.sin(w) / Math.SQRT2, a0 = 1 + alpha;
+  return biquad([(1 + cos) / 2 / a0, -(1 + cos) / a0, (1 + cos) / 2 / a0], [-2 * cos / a0, (1 - alpha) / a0]);
+}
+function notch(hz, rate, q) {
+  const w = 2 * Math.PI * hz / rate, cos = Math.cos(w), alpha = Math.sin(w) / (2 * q), a0 = 1 + alpha;
+  return biquad([1 / a0, -2 * cos / a0, 1 / a0], [-2 * cos / a0, (1 - alpha) / a0]);
+}
+function forDisplay() {  // the filters of one EEG channel
+  const high = highPass(0.5, 256), hum = notch(MAINS_HZ, 256, NOTCH_Q);
+  let first = null;
+  return value => {
+    first ??= value;  // start at rest on the first sample
+    return hum(high(value - first));
+  };
+}
+let eeg = [forDisplay(), forDisplay()];
+
+const streams = {};  // per stream: times in seconds, and one array of values per column
+for (const name of Object.keys(RATE)) streams[name] = { t: [], v: [] };
+let seconds = 10, paused = null, offset = null;  // offset: headband time minus this page's clock
+let orientation = null, streaming = false;
+
+function now() {  // the headband time at the right edge
+  if (paused !== null) return paused;
+  return offset === null ? 0 : performance.now() / 1000 + offset - BEHIND_S;
+}
+
+function take(message) {
+  if (message.reset) {
+    for (const s of Object.values(streams)) { s.t.length = 0; s.v.length = 0; }
+    offset = null; eeg = [forDisplay(), forDisplay()];
+  }
+  let newest = null;
+  for (const [name, data] of Object.entries(message.streams || {})) {
+    const s = streams[name];
+    const pause = 2.5 / RATE[name];  // a longer pause between two samples is a gap in the line
+    for (let i = 0; i < data.t.length; i++) {
+      const t = data.t[i] / 1e6, before = s.t[s.t.length - 1];
+      if (t - before > pause) { s.t.push((t + before) / 2); s.v.forEach(column => column.push(null)); }
+      s.t.push(t);
+      data.v[i].forEach((value, c) => {  // a missing value stays null: the line breaks there
+        (s.v[c] || (s.v[c] = [])).push(value !== null && name === 'eeg/raw' ? eeg[c](value) : value);
+      });
+    }
+    const drop = s.t.findIndex(t => t > s.t[s.t.length - 1] - KEPT_S - 1);
+    if (drop > 256) { s.t.splice(0, drop); s.v.forEach(column => column.splice(0, drop)); }
+    if (data.t.length) newest = Math.max(newest ?? 0, s.t[s.t.length - 1]);
+    if (name === 'motion/orientation' && data.v.length) orientation = data.v[data.v.length - 1];
+  }
+  if (newest !== null) {
+    // Follow the newest sample at once, and fall back slowly while packets are merely late. When
+    // the samples are behind by more than late packets can explain, the stream was interrupted
+    // or its clock stepped: then the right edge jumps to them instead of creeping there.
+    const seen = newest - performance.now() / 1000;
+    offset = offset === null || seen > offset || offset - seen > LATE_S ? seen : offset + (seen - offset) * 0.02;
+  }
+  let text, colour;
+  if (STATE[message.state] && (message.state !== 'streaming' || message.receiving)) [text, colour] = STATE[message.state];
+  else if (message.receiving) [text, colour] = STATE.streaming;
+  else if (message.state === 'streaming') [text, colour] = ['No new data arrives', '#EBC48B'];
+  else [text, colour] = ['No phone is linked: start the bridge and scan its QR code', '#D6C8FF'];
+  const state = document.getElementById('state');
+  state.textContent = text; state.style.setProperty('--dot', colour);
+  streaming = text === STATE.streaming[0];  // the pebble's light is lit meanwhile
+}
+
+function first(times, from) {  // index of the first time later than `from`
+  let low = 0, high = times.length;
+  while (low < high) { const mid = (low + high) >> 1; if (times[mid] > from) high = mid; else low = mid + 1; }
+  return low;
+}
+
+function steps(low, high, wanted) {  // round values for the grid between low and high
+  const rough = (high - low) / wanted, power = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * power).find(s => s >= rough);
+  const out = [];
+  for (let value = Math.ceil(low / step) * step; value <= high; value += step) out.push(value);
+  return { step, values: out };
+}
+
+// The light spans from 0 in darkness to tens of thousands in daylight: it is drawn as
+// log10(value + 1), which keeps 0 on the scale.
+const LOG = value => Math.log10(value + 1);
+const FONT = '12px "Bai Jamjuree", system-ui, sans-serif';
+class Panel {
+  constructor(spec, last) {
+    this.spec = spec; this.last = last;  // the last panel carries the time axis for all
+    this.range = null; this.small = null;  // the value range followed, and since when it is too wide
+    this.lines = []; this.every = 1;  // the values of the horizontal grid lines; every which has a label
+    const card = document.createElement('div');
+    card.className = 'card' + (spec.large ? ' large' : '') + (last ? ' last' : '');
+    const detail = spec.unit + (spec.note ? ' · ' + spec.note : '');
+    card.innerHTML = `<div class="title"><b>${spec.title}</b>${detail}</div><div class="key"></div><div class="plot"></div>`;
+    const key = card.querySelector('.key');
+    if (spec.names.length > 1) key.innerHTML = spec.names.map((name, i) => `<span><i style="background:var(${spec.colours[i]})"></i>${name}</span>`).join('');
+    else key.remove();
+    this.holder = card.querySelector('.plot');
+    document.getElementById('signals').append(card);
+    new ResizeObserver(() => this.plot.setSize({ width: this.holder.clientWidth, height: this.holder.clientHeight })).observe(this.holder);
+    this.build();
+  }
+
+  build() {  // also after a change of the colours, which uPlot takes when a plot is made
+    const { spec, last } = this;
+    if (this.plot) this.plot.destroy();
+    const grid = { stroke: colour('--grid'), width: 1 }, none = { show: false };
+    this.below = last ? 22 : 8;  // height of the time axis
+    this.plot = new uPlot({
+      width: this.holder.clientWidth || 300, height: this.holder.clientHeight || 100,
+      padding: [8, 0, 0, 0], legend: none, cursor: none,
+      hooks: spec.floor ? { drawAxes: [u => this.floor(u)] } : {},
+      scales: {
+        x: { time: false, range: (u, min, max) => [min ?? 0, max ?? 1] },
+        y: { range: (u, min, max) => this.scale(min, max) },
+      },
+      axes: [
+        {  // a line at every full second of headband time, which moves along with the signal
+          size: last ? 2 : 8, font: FONT, stroke: colour('--faint'), grid, ticks: none,
+          splits: u => {
+            const out = [];
+            for (let value = Math.ceil(u.scales.x.min); value <= u.scales.x.max; value++) out.push(value);
+            return out;
+          },
+          values: (u, splits) => splits.map(() => ''),
+        },
+        {  // the EEG shows its lines without values, in the same space as the others
+          size: 46, gap: 7, font: FONT, stroke: colour('--faint'), ticks: none,
+          grid: { stroke: colour('--grid-fine'), width: 1 },
+          splits: () => this.lines,
+          values: (u, splits) => splits.map((value, n) => {
+            if (spec.plain || n % this.every) return '';
+            if (spec.log) value = Math.round(10 ** value - 1);  // back to the value itself
+            if (spec.log && value >= 1000) return value / 1000 + 'k';
+            return Math.abs(value) >= 1000 ? value.toFixed(0) : String(+value.toPrecision(3) || 0);
+          }),
+        },
+        ...(last ? [{  // how long ago, at places that stay where they are
+          scale: 'x', side: 2, size: 20, gap: 2, font: FONT, stroke: colour('--faint'), grid: none, ticks: none,
+          splits: u => {
+            const tick = seconds <= 5 ? 1 : seconds <= 10 ? 2 : 5, out = [];
+            for (let back = Math.ceil(seconds / tick - 1) * tick; back > 0; back -= tick) out.push(u.scales.x.max - back);
+            return out;
+          },
+          values: (u, splits) => splits.map(value => `−${Math.round(u.scales.x.max - value)} s`),
+        }] : []),
+      ],
+      series: [{}, ...spec.columns.map((c, n) => ({
+        stroke: colour(spec.colours[n]), width: spec.width || 1.5, spanGaps: false,
+        points: spec.dots ? { show: true, size: 7, fill: colour(spec.colours[n]) } : none,
+      }))],
+    }, [[], ...spec.columns.map(() => [])], this.holder);
+  }
+
+  floor(u) {  // a line at 0, a little stronger than the grid: the signal does not go below it
+    const [low, high] = [u.scales.y.min, u.scales.y.max];
+    if (!(low <= 0 && high >= 0)) return;
+    const g = u.ctx, y = Math.round(u.valToPos(0, 'y', true)) + 0.5;
+    g.save();
+    g.strokeStyle = colour('--faint'); g.globalAlpha = 0.6; g.lineWidth = Math.round(devicePixelRatio);
+    g.beginPath(); g.moveTo(u.bbox.left, y); g.lineTo(u.bbox.left + u.bbox.width, y); g.stroke();
+    g.restore();
+  }
+
+  decades(high) {  // a logarithmic scale from 0 to the next power of ten: a line at 0, 10, 100, ...
+    const height = Math.max(this.holder.clientHeight - this.below - 8, 20);
+    let count = Math.max(1, Math.ceil(high - 1e-3));
+    this.every = Math.max(1, Math.ceil(22 / (height / count)));
+    count = Math.ceil(count / this.every) * this.every;
+    this.lines = Array.from({ length: count + 1 }, (_, n) => LOG(n ? 10 ** n : 0));
+    return [0, LOG(10 ** count)];
+  }
+
+  follow(low, high, at) {  // grow at once, shrink only after the signal stayed small for a while
+    const span = Math.max(high - low, 1e-9), fit = this.spec.wide ? WIDE : TIGHT;
+    const room = high > low ? span * fit.room : Math.max(Math.abs(low) * 0.1, 1);  // a flat signal
+    if (!this.range || low < this.range[0] || high > this.range[1]) {
+      this.range = [low - room, high + room]; this.small = null;
+    } else if (span < fit.shrink * (this.range[1] - this.range[0])) {
+      this.small ??= at;
+      if (at - this.small > SHRINK_AFTER_S) { this.range = [low - room, high + room]; this.small = null; }
+    } else this.small = null;
+  }
+
+  scale(low, high) {  // the value scale for the lowest and highest value in view
+    const { spec } = this;
+    if (!(low <= high)) return this.shown ?? [0, 1];  // nothing in view
+    if (this.within) [low, high] = this.within;  // a few extreme values do not set the scale
+    if (spec.log) return this.shown = this.decades(high);
+    if (spec.zero) { low = Math.min(low, 0); high = Math.max(high, 0); }  // the scale starts at 0
+    this.follow(low, high, performance.now() / 1000);
+    if (spec.zero && low === 0) this.range[0] = 0;  // no empty space beyond the zero line
+    if (spec.zero && high === 0 && low < 0) this.range[1] = 0;  // ... unless the signal is 0 throughout
+    // The scale runs from one round value to another, so that its bottom and its top carry a label.
+    // A grid line about every 13 pixels; a label on as many of them as fit, evenly spaced.
+    const height = Math.max(this.holder.clientHeight - this.below - 8, 20);
+    const step = steps(this.range[0], this.range[1], Math.max(4, height / 13)).step;
+    const bottom = Math.floor(this.range[0] / step + 1e-9) * step;
+    let count = Math.round((Math.ceil(this.range[1] / step - 1e-9) * step - bottom) / step);
+    this.every = Math.max(1, Math.ceil(22 / (height / count)));
+    count = Math.ceil(count / this.every) * this.every;
+    this.lines = Array.from({ length: count + 1 }, (_, n) => bottom + n * step);
+    return this.shown = [bottom, bottom + count * step];
+  }
+
+  draw(right) {
+    const s = streams[this.spec.stream];  // one sample beyond each edge, so that the lines reach it
+    const from = Math.max(first(s.t, right - seconds) - 1, 0), to = Math.min(first(s.t, right) + 1, s.t.length);
+    const data = [s.t.slice(from, to), ...this.spec.columns.map(c => (s.v[c] || []).slice(from, to))];
+    if (this.spec.log) for (let c = 1; c < data.length; c++) data[c] = data[c].map(value => value === null ? null : LOG(value));
+    if (this.spec.percent) {  // scale to these percentiles of the values in view; what lies beyond is cut off
+      const sorted = Float64Array.from(data[1].filter(value => value !== null)).sort();
+      this.within = sorted.length ? this.spec.percent.map(p => sorted[Math.round(p / 100 * (sorted.length - 1))]) : null;
+    }
+    this.plot.batch(() => {
+      this.plot.setData(data, false);
+      this.plot.setScale('x', { min: right - seconds, max: right });
+    });
+  }
+}
+
+// uPlot comes from the internet; without it this part of the page says so and stays empty.
+if (!window.uPlot) document.getElementById('signals').innerHTML = '<p class="missing">The plots load uPlot from the internet and could not reach it.</p>';
+const panels = window.uPlot ? PANELS.map((spec, i) => new Panel(spec, i === PANELS.length - 1)) : [];
+function frame() {
+  const right = now();
+  if (offset !== null) for (const panel of panels) panel.draw(right);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+for (const button of document.querySelectorAll('[data-seconds]')) button.onclick = () => {
+  seconds = +button.dataset.seconds;
+  for (const other of document.querySelectorAll('[data-seconds]')) other.setAttribute('aria-pressed', other === button);
+  for (const panel of panels) panel.range = null;
+};
+const pause = document.getElementById('pause');
+function togglePause() {
+  paused = paused === null ? now() : null;
+  pause.setAttribute('aria-pressed', paused !== null); pause.textContent = paused === null ? 'Pause' : 'Go on';
+}
+pause.onclick = togglePause;
+addEventListener('keydown', event => { if (event.code === 'Space' && event.target === document.body) { event.preventDefault(); togglePause(); } });
+
+const source = new EventSource('/stream');
+source.onmessage = message => take(JSON.parse(message.data));
+source.onerror = () => {
+  const state = document.getElementById('state');
+  state.textContent = 'The viewer program has ended: start it again'; state.style.setProperty('--dot', '#EBC48B');
+};
+window.liveOrientation = () => (paused === null ? orientation : null);
+window.liveStreaming = () => streaming;
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+// The pebble: a 3D view that turns as the head does. three.js comes from the internet; without
+// it this part of the page says so and stays empty.
+const note = document.getElementById('note');
+let THREE, GLTFLoader, RoomEnvironment;
+try {
+  THREE = await import('three');
+  ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'));
+  ({ RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js'));
+} catch (error) {
+  note.textContent = 'The 3D view loads three.js from the internet and could not reach it.';
+}
+if (THREE) {
+  const canvas = document.getElementById('pebble');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const scene = new THREE.Scene();
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+  const PEBBLE_PX = 235;  // width of the pebble on the screen, seen from the front
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 10);
+  camera.position.set(0, 0.12, 1);
+  camera.lookAt(0, 0, 0);
+  const light = new THREE.DirectionalLight(0xffffff, 1.2);
+  light.position.set(0.5, 1, 1);
+  scene.add(light);
+
+  // The headband reports how its own axes lie in the world: +X to the wearer's left, +Y to the
+  // crown, +Z out of the forehead, in a world whose +Z points up. Here +Y points up and the
+  // camera looks along -Z, so the world is turned once. MODEL turns the model's axes into the
+  // headband's; change it if the pebble shows the wrong way round.
+  const WORLD = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const MODEL = new THREE.Quaternion();
+  const head = new THREE.Group(), turned = new THREE.Group();
+  turned.quaternion.copy(MODEL);
+  head.add(turned);
+  head.position.y = 0.015;  // a little above the middle, to leave room for the line under it
+  scene.add(head);
+
+  function fit(object) {  // centre it and scale it to the stage
+    const box = new THREE.Box3().setFromObject(object), size = box.getSize(new THREE.Vector3());
+    object.position.sub(box.getCenter(new THREE.Vector3()));
+    turned.scale.setScalar(0.5 / Math.max(size.x, size.y, size.z));
+    turned.add(object);
+  }
+  // The pebble's yellow light is lit while samples flow, and off otherwise.
+  const lamps = [];
+  function lamp(model) {  // find the light in the model and prepare its material
+    model.traverse(part => {
+      if (!part.isMesh || !/led/i.test(part.name + ' ' + (part.parent ? part.parent.name : ''))) return;
+      part.material = part.material.clone();
+      part.material.emissive = new THREE.Color(0xffd24a);
+      part.material.emissiveIntensity = 0;
+      lamps.push(part.material);
+    });
+  }
+  let lit = 0;  // how far the light is on, from 0 to 1
+  function shine() {
+    lit += ((window.liveStreaming() ? 1 : 0) - lit) * 0.06;
+    for (const material of lamps) material.emissiveIntensity = 1.6 * lit;
+  }
+
+  new GLTFLoader().load('/model.glb', gltf => { lamp(gltf.scene); fit(gltf.scene); }, undefined, () => {
+    const shape = new THREE.Mesh(  // no model file: a plain pebble with a dot on its outer face
+      new THREE.SphereGeometry(1, 48, 24).scale(1, 0.58, 0.22),
+      new THREE.MeshStandardMaterial({ color: 0xd9c8f6, roughness: 0.55 }));
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07), new THREE.MeshStandardMaterial({ color: 0x8a82ff }));
+    dot.position.set(0, 0.25, 0.2);
+    shape.add(dot);
+    fit(shape);
+  });
+
+  const target = new THREE.Quaternion(), yaw = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  let latest = null, faced = false, angle = 0;  // angle: how far the view is turned about the vertical
+  function turn(to) { angle = to; yaw.setFromAxisAngle(up, angle); }
+  function face() {  // turn the view so that the forehead points at the viewer
+    if (!latest) return;
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(latest);
+    turn(-Math.atan2(forward.x, forward.z));
+    faced = true;
+  }
+  document.getElementById('face').onclick = face;
+  // Dragging left or right turns the view about the vertical by hand: a full turn per stage width.
+  let held = null;
+  canvas.onpointerdown = event => { held = event.clientX; canvas.setPointerCapture(event.pointerId); canvas.style.cursor = 'grabbing'; };
+  canvas.onpointermove = event => {
+    if (held === null) return;
+    turn(angle + (event.clientX - held) / canvas.clientWidth * 2 * Math.PI);
+    held = event.clientX;
+  };
+  canvas.onpointerup = canvas.onpointercancel = () => { held = null; canvas.style.cursor = 'grab'; };
+
+  function draw() {
+    const width = canvas.clientWidth, height = canvas.clientHeight;
+    if (canvas.width !== Math.round(width * devicePixelRatio) || canvas.height !== Math.round(height * devicePixelRatio)) {
+      renderer.setPixelRatio(devicePixelRatio); renderer.setSize(width, height, false);
+      // The pebble keeps its size on the screen whatever the height of its stage: the camera's
+      // angle is set so that the pebble's long side is PEBBLE_PX wide.
+      const across = 0.5 * height / Math.min(PEBBLE_PX, 0.6 * width);  // how much the stage's height covers
+      camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(across / 2 / camera.position.length()));
+      camera.aspect = width / height; camera.updateProjectionMatrix();
+    }
+    const q = window.liveOrientation();  // w, x, y, z
+    if (q && !(q[0] === 1 && q[1] === 0 && q[2] === 0 && q[3] === 0)) {
+      latest = WORLD.clone().multiply(new THREE.Quaternion(q[1], q[2], q[3], q[0]));
+      if (!faced) { face(); head.quaternion.copy(yaw).multiply(latest); note.hidden = true; }
+      target.copy(yaw).multiply(latest);
+      head.quaternion.slerp(target, 0.35);
+    }
+    shine();
+    renderer.render(scene, camera);
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+</script>
+</body>
+</html>
